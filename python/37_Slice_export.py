@@ -1,26 +1,76 @@
 
 # PyTorchの基本ライブラリをインポート
 import torch
+# ONNXエクスポート機能をインポート
 import torch.onnx
+# ニューラルネットワークモジュールをインポート
 import torch.nn as nn
 
 
 class SliceModel(nn.Module):
     """
-    テンソルの一部を切り出すモデル
-    Slice: 指定範囲のテンソルを抽出
+    テンソルの一部を切り出す（Slice）モデル
+
+    このモデルは指定範囲のテンソルを抽出します。
+    演算: インデックス範囲を指定してテンソルの一部を取得
+
+    用途:
+    - 特定チャンネルの抽出
+    - 空間領域の切り出し（ROI抽出）
+    - 時系列データの一部取得
+
+    注意:
+    - Pythonのスライス構文が使用可能（start:end:step）
+    - 負のインデックスも使用可能（-1は最後の要素）
     """
 
     def __init__(self):
+        """
+        モデルの初期化
+        親クラス(nn.Module)の初期化を呼び出す
+
+        このモデルは学習可能なパラメータを持たず、純粋な演算のみを行います
+        """
         super(SliceModel, self).__init__()
 
     def forward(self, x):
-        # チャンネル次元で1:3を切り出し
+        """
+        順伝播（フォワードパス）の定義
+
+        Args:
+            x: 入力テンソル、形状は (batch_size, channels, height, width)
+
+        Returns:
+            スライスされたテンソル
+            例: 入力(1, 4, 32, 32)でチャンネル1:3を抽出すると、出力は(1, 2, 32, 32)
+        """
+        # チャンネル次元（dim=1）で1番目から3番目の前（1:3）を切り出し
+        # インデックス1と2のチャンネルを抽出
         return x[:, 1:3, :, :]
 
 
+# ==============================================================================
+# メイン処理: モデルをONNX形式でエクスポート
+# ==============================================================================
+
+# モデルのインスタンスを作成
 model = SliceModel()
+
+# ダミー入力の作成
+# - torch.randn: 正規分布に従うランダムなテンソルを生成
+# - 形状 (1, 4, 32, 32): バッチサイズ1、4チャンネル、32x32ピクセル
+# - スライス後: (1, 2, 32, 32) チャンネル1と2を抽出
 dummy_input = torch.randn(1, 4, 32, 32)
-torch.onnx.export(model, dummy_input, "37_slice.onnx",
-                  input_names=["input"], output_names=["output"], dynamo=False)
+
+# ONNX形式でモデルをエクスポート
+torch.onnx.export(
+    model,                      # エクスポートするPyTorchモデル
+    dummy_input,                # モデルの入力形状を推論するためのダミー入力
+    "37_slice.onnx",            # 出力ファイル名（ONNX形式）
+    input_names=["input"],      # ONNX グラフでの入力テンソルの名前
+    output_names=["output"],    # ONNX グラフでの出力テンソルの名前
+    dynamo=False                # 従来のトレースベースのエクスポートを使用
+)
+
+# エクスポート完了メッセージを表示
 print("saved: 37_slice.onnx")
